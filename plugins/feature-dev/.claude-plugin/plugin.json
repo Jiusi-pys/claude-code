@@ -1,9 +1,15 @@
 {
   "name": "feature-dev",
-  "version": "1.0.0",
-  "description": "Comprehensive feature development workflow with specialized agents for codebase exploration, architecture design, and quality review",
+  "version": "2.0.0",
+  "description": "Comprehensive feature development workflow with Evidence Ledger system for structured evidence collection, confidence-based validation, and specialized agents for codebase exploration, architecture design, and quality review",
   "author": {
     "name": "Sid Bidasaria",
     "email": "sbidasaria@anthropic.com"
-  }
+  },
+  "contributors": [
+    {
+      "name": "Jiusi",
+      "contribution": "Evidence Ledger system implementation"
+    }
+  ]
 }
