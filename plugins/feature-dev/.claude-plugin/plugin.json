@@ -5,11 +5,5 @@
   "author": {
     "name": "Sid Bidasaria",
     "email": "sbidasaria@anthropic.com"
-  },
-  "contributors": [
-    {
-      "name": "Jiusi",
-      "contribution": "Evidence Ledger system implementation"
-    }
-  ]
+  }
 }
