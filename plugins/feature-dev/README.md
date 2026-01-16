@@ -1,20 +1,23 @@
 # Feature Development Plugin
 
-A comprehensive, structured workflow for feature development with specialized agents for codebase exploration, architecture design, and quality review.
+A comprehensive, structured workflow for feature development with Evidence Ledger system for verifiable evidence collection, confidence-based validation, and specialized agents for codebase exploration, architecture design, and quality review.
 
 ## Overview
 
-The Feature Development Plugin provides a systematic 7-phase approach to building new features. Instead of jumping straight into code, it guides you through understanding the codebase, asking clarifying questions, designing architecture, and ensuring quality—resulting in better-designed features that integrate seamlessly with your existing code.
+The Feature Development Plugin provides a systematic 7-phase approach to building new features. Instead of jumping straight into code, it guides you through understanding the codebase with **verifiable evidence**, asking clarifying questions, designing architecture, and ensuring quality—resulting in better-designed features that integrate seamlessly with your existing code.
+
+**Version 2.0**: Introduces the **Evidence Ledger** system for structured, auditable codebase analysis with confidence-based progression gates.
 
 ## Philosophy
 
 Building features requires more than just writing code. You need to:
-- **Understand the codebase** before making changes
+- **Collect verifiable evidence** about the codebase before making decisions
+- **Validate claims** with confidence scores before proceeding
 - **Ask questions** to clarify ambiguous requirements
 - **Design thoughtfully** before implementing
 - **Review for quality** after building
 
-This plugin embeds these practices into a structured workflow that runs automatically when you use the `/feature-dev` command.
+**Core Principle**: Correct direction can progress slowly; wrong direction is not allowed to start.
 
 ## Command: `/feature-dev`
 
@@ -34,14 +37,16 @@ The command will guide you through the entire process interactively.
 
 ## The 7-Phase Workflow
 
-### Phase 1: Discovery
+### Phase 1: Discovery & Research Question
 
-**Goal**: Understand what needs to be built
+**Goal**: Understand what needs to be built and establish the investigation scope
 
 **What happens:**
 - Clarifies the feature request if it's unclear
 - Asks what problem you're solving
 - Identifies constraints and requirements
+- **Creates a Research Question** with scope and budgets
+- **Creates evidence storage directory**: `.claude/evidence/sessions/{rq_id}/`
 - Summarizes understanding and confirms with you
 
 **Example:**
@@ -51,35 +56,73 @@ Claude: Let me understand what you need...
         - What should be cached? (API responses, computed values, etc.)
         - What are your performance requirements?
         - Do you have a preferred caching solution?
+
+Creating Research Question:
+- rq_id: rq_20240115_caching
+- Scope: src/api, src/services
+- Budgets: 40 sources, 20 claims, 80 agent steps
 ```
 
-### Phase 2: Codebase Exploration
+### Phase 2: Evidence-Based Exploration
 
-**Goal**: Understand relevant existing code and patterns
+**Goal**: Collect structured, verifiable evidence about the codebase and validate claims meet confidence threshold
 
 **What happens:**
-- Launches 2-3 `code-explorer` agents in parallel
-- Each agent explores different aspects (similar features, architecture, UI patterns)
-- Agents return comprehensive analyses with key files to read
-- Claude reads all identified files to build deep understanding
-- Presents comprehensive summary of findings
 
-**Agents launched:**
-- "Find features similar to [feature] and trace implementation"
-- "Map the architecture and abstractions for [area]"
-- "Analyze current implementation of [related feature]"
+#### Step 2.1: Launch Evidence Explorers
+- Launches 2-3 `evidence-explorer` agents in parallel
+- Each agent explores different aspects (similar features, architecture, patterns)
+- Agents collect evidence in the **Evidence Ledger format**:
+  - **Sources**: File references with quality tiers (A/B/C/D)
+  - **Claims**: Falsifiable statements about the codebase
+  - **Evidence**: Exact quotes with file:line locators
+  - **Links**: Claim-evidence relationships with strength scores
+
+#### Step 2.2: Merge Evidence
+- Deduplicates sources
+- Merges claims, evidence, and links
+- Reads all key files identified by agents
+
+#### Step 2.3: Validate Evidence
+- Launches 2-3 `evidence-reviewer` agents with different perspectives:
+  - **Source Quality Reviewer**: Verifies source tiers and credibility
+  - **Evidence Accuracy Reviewer**: Checks quotes match actual files
+  - **Claim Logic Reviewer**: Assesses if evidence supports claims
+- Assigns confidence scores (0.0-1.0)
+- Identifies contradictions and gaps
+
+#### Step 2.4: Confidence Gate
+
+**CRITICAL**: Claims must reach **confidence >= 0.75** to proceed.
+
+- **If passed**: Proceeds to Phase 3
+- **If blocked**: Presents low-confidence claims and asks you to choose:
+  - **Supplement Investigation**: Launch more explorers
+  - **Acknowledge Assumptions**: Proceed with explicit risk acknowledgment
+  - **Reduce Scope**: Only keep well-supported claims
 
 **Example output:**
 ```
-Found similar features:
-- User authentication (src/auth/): Uses JWT tokens, middleware pattern
-- Session management (src/session/): Redis-backed, 24hr expiry
-- API security (src/api/middleware/): Rate limiting, CORS
+Evidence Validation Results:
 
-Key files to understand:
-- src/auth/AuthService.ts:45 - Core authentication logic
-- src/middleware/authMiddleware.ts:12 - Request authentication
-- src/config/security.ts:8 - Security configuration
+Supported Claims (confidence >= 0.75):
+- clm_001: "AuthService uses JWT with RS256" (0.88)
+  Evidence: src/auth/AuthService.ts:45
+- clm_002: "Tokens expire in 1 hour" (0.92)
+  Evidence: src/auth/AuthService.ts:46
+
+Blocked Claims (confidence < 0.75):
+- clm_003: "All API endpoints require authentication" (0.62)
+  Missing: No evidence of global middleware configuration
+  Contradiction found: src/routes/health.ts has no auth
+
+Aggregate confidence: 0.81
+Recommendation: BLOCK - clm_003 needs more evidence
+
+Options:
+a) Investigate API middleware configuration
+b) Acknowledge assumption and proceed
+c) Remove clm_003 from scope
 ```
 
 ### Phase 3: Clarifying Questions
@@ -87,264 +130,187 @@ Key files to understand:
 **Goal**: Fill in gaps and resolve all ambiguities
 
 **What happens:**
-- Reviews codebase findings and feature request
-- Identifies underspecified aspects:
-  - Edge cases
-  - Error handling
-  - Integration points
-  - Backward compatibility
-  - Performance needs
+- Reviews Evidence Ledger findings and feature request
+- References evidence when asking questions
 - Presents all questions in an organized list
 - **Waits for your answers before proceeding**
 
 **Example:**
 ```
-Before designing the architecture, I need to clarify:
+Based on evidence found in src/auth/AuthService.ts:45:
 
-1. OAuth provider: Which OAuth providers? (Google, GitHub, custom?)
-2. User data: Store OAuth tokens or just user profile?
-3. Existing auth: Replace current auth or add alongside?
-4. Sessions: Integrate with existing session management?
-5. Error handling: How to handle OAuth failures?
+1. JWT Algorithm: Found RS256 being used. Should the new feature also use RS256?
+2. Token expiry: Found 1-hour expiry. Should caching respect this?
+3. Auth exceptions: Found health endpoint without auth. What other endpoints?
 ```
-
-**Critical**: This phase ensures nothing is ambiguous before design begins.
 
 ### Phase 4: Architecture Design
 
-**Goal**: Design multiple implementation approaches
+**Goal**: Design multiple implementation approaches with different trade-offs
 
 **What happens:**
-- Launches 2-3 `code-architect` agents with different focuses:
-  - **Minimal changes**: Smallest change, maximum reuse
-  - **Clean architecture**: Maintainability, elegant abstractions
-  - **Pragmatic balance**: Speed + quality
-- Reviews all approaches
-- Forms opinion on which fits best for this task
+- Launches 2-3 `code-architect` agents
+- Each architect references Evidence Ledger claims when justifying design
 - Presents comparison with trade-offs and recommendation
 - **Asks which approach you prefer**
-
-**Example output:**
-```
-I've designed 3 approaches:
-
-Approach 1: Minimal Changes
-- Extend existing AuthService with OAuth methods
-- Add new OAuth routes to existing auth router
-- Minimal refactoring required
-Pros: Fast, low risk
-Cons: Couples OAuth to existing auth, harder to test
-
-Approach 2: Clean Architecture
-- New OAuthService with dedicated interface
-- Separate OAuth router and middleware
-- Refactor AuthService to use common interface
-Pros: Clean separation, testable, maintainable
-Cons: More files, more refactoring
-
-Approach 3: Pragmatic Balance
-- New OAuthProvider abstraction
-- Integrate into existing AuthService
-- Minimal refactoring, good boundaries
-Pros: Balanced complexity and cleanliness
-Cons: Some coupling remains
-
-Recommendation: Approach 3 - gives you clean boundaries without
-excessive refactoring, and fits your existing architecture well.
-
-Which approach would you like to use?
-```
 
 ### Phase 5: Implementation
 
 **Goal**: Build the feature
 
 **What happens:**
-- **Waits for explicit approval** before starting
-- Reads all relevant files identified in previous phases
-- Implements following chosen architecture
-- Follows codebase conventions strictly
-- Writes clean, well-documented code
-- Updates todos as progress is made
-
-**Notes:**
-- Implementation only starts after you approve
-- Follows patterns discovered in Phase 2
-- Uses architecture designed in Phase 4
-- Continuously tracks progress
+- **Waits for explicit approval**
+- Follows codebase conventions discovered in Evidence Ledger
+- References specific claims when making decisions
 
 ### Phase 6: Quality Review
 
 **Goal**: Ensure code is simple, DRY, elegant, and functionally correct
 
 **What happens:**
-- Launches 3 `code-reviewer` agents in parallel with different focuses:
-  - **Simplicity/DRY/Elegance**: Code quality and maintainability
-  - **Bugs/Correctness**: Functional correctness and logic errors
-  - **Conventions/Abstractions**: Project standards and patterns
-- Consolidates findings
-- Identifies highest severity issues
-- **Presents findings and asks what you want to do**:
-  - Fix now
-  - Fix later
-  - Proceed as-is
-- Addresses issues based on your decision
-
-**Example output:**
-```
-Code Review Results:
-
-High Priority Issues:
-1. Missing error handling in OAuth callback (src/auth/oauth.ts:67)
-2. Memory leak: OAuth state not cleaned up (src/auth/oauth.ts:89)
-
-Medium Priority:
-1. Could simplify token refresh logic (src/auth/oauth.ts:120)
-2. Consider extracting OAuth config validation
-
-All tests pass. Code follows project conventions.
-
-What would you like to do?
-```
+- Launches 3 `code-reviewer` agents
+- Verifies implementation against Evidence Ledger claims
+- Checks if Phase 2 assumptions need re-validation
 
 ### Phase 7: Summary
 
 **Goal**: Document what was accomplished
 
 **What happens:**
-- Marks all todos complete
-- Summarizes:
-  - What was built
-  - Key decisions made
-  - Files modified
-  - Suggested next steps
-
-**Example:**
-```
-Feature Complete: OAuth Authentication
-
-What was built:
-- OAuth provider abstraction supporting Google and GitHub
-- OAuth routes and middleware integrated with existing auth
-- Token refresh and session integration
-- Error handling for all OAuth flows
-
-Key decisions:
-- Used pragmatic approach with OAuthProvider abstraction
-- Integrated with existing session management
-- Added OAuth state to prevent CSRF
-
-Files modified:
-- src/auth/OAuthProvider.ts (new)
-- src/auth/AuthService.ts
-- src/routes/auth.ts
-- src/middleware/authMiddleware.ts
-
-Suggested next steps:
-- Add tests for OAuth flows
-- Add more OAuth providers (Microsoft, Apple)
-- Update documentation
-```
+- Summarizes what was built
+- References key Evidence Ledger findings
+- Reports Evidence Ledger session location
 
 ## Agents
+
+### `evidence-explorer` (NEW in v2.0)
+
+**Purpose**: Collects structured evidence for feature development discovery
+
+**Focus areas:**
+- Source discovery with quality tier assessment
+- Claim formulation (falsifiable statements)
+- Evidence collection (exact quotes, file:line locators)
+- Link creation (claim-evidence relationships)
+
+**Tools**: Glob, Grep, LS, Read, NotebookRead, TodoWrite
+- **Deliberately excludes** WebFetch, WebSearch for reliability
+
+**Output format:**
+```json
+{
+  "sources": [...],
+  "claims": [...],
+  "evidence": [...],
+  "links": [...],
+  "key_files": [...],
+  "investigation_notes": "..."
+}
+```
+
+### `evidence-reviewer` (NEW in v2.0)
+
+**Purpose**: Validates evidence and assigns confidence scores
+
+**Focus areas:**
+- Source verification (file exists, content matches)
+- Evidence accuracy (quotes exact, locators correct)
+- Claim logic (evidence actually supports claims)
+- Contradiction hunting
+
+**Model**: opus (uses more powerful model for critical validation)
+
+**Output:**
+- Confidence scores (0.0-1.0)
+- Verification results
+- Contradictions found
+- Proceed/block recommendation
 
 ### `code-explorer`
 
 **Purpose**: Deeply analyzes existing codebase features by tracing execution paths
 
-**Focus areas:**
-- Entry points and call chains
-- Data flow and transformations
-- Architecture layers and patterns
-- Dependencies and integrations
-- Implementation details
-
 **When triggered:**
-- Automatically in Phase 2
-- Can be invoked manually when exploring code
-
-**Output:**
-- Entry points with file:line references
-- Step-by-step execution flow
-- Key components and responsibilities
-- Architecture insights
-- List of essential files to read
+- Can be invoked manually for exploration
+- Replaced by `evidence-explorer` for Phase 2 workflow
 
 ### `code-architect`
 
 **Purpose**: Designs feature architectures and implementation blueprints
 
-**Focus areas:**
-- Codebase pattern analysis
-- Architecture decisions
-- Component design
-- Implementation roadmap
-- Data flow and build sequence
-
 **When triggered:**
 - Automatically in Phase 4
-- Can be invoked manually for architecture design
-
-**Output:**
-- Patterns and conventions found
-- Architecture decision with rationale
-- Complete component design
-- Implementation map with specific files
-- Build sequence with phases
+- References Evidence Ledger claims for decisions
 
 ### `code-reviewer`
 
 **Purpose**: Reviews code for bugs, quality issues, and project conventions
 
-**Focus areas:**
-- Project guideline compliance (CLAUDE.md)
-- Bug detection
-- Code quality issues
-- Confidence-based filtering (only reports high-confidence issues ≥80)
-
 **When triggered:**
 - Automatically in Phase 6
-- Can be invoked manually after writing code
+- Verifies against Evidence Ledger claims
 
-**Output:**
-- Critical issues (confidence 75-100)
-- Important issues (confidence 50-74)
-- Specific fixes with file:line references
-- Project guideline references
+## Evidence Ledger System
 
-## Usage Patterns
+### Overview
 
-### Full workflow (recommended for new features):
+The Evidence Ledger is a structured system for collecting, validating, and tracking evidence during the Discovery phase. It ensures all claims about the codebase are backed by verifiable evidence with explicit confidence scores.
+
+### Data Model
+
+| Entity | Description |
+|--------|-------------|
+| **ResearchQuestion** | Investigation scope and budgets |
+| **Source** | Normalized file reference with quality tier |
+| **Claim** | Falsifiable statement about the codebase |
+| **EvidenceItem** | Exact quote with file:line locator |
+| **Link** | Claim-evidence relationship with strength |
+| **ValidationReport** | Reviewer findings and confidence scores |
+
+### Quality Tiers
+
+| Tier | Description | Base Strength |
+|------|-------------|---------------|
+| A | Primary source code, official docs | 0.9 |
+| B | Config files, README, comments | 0.75 |
+| C | External docs, type definitions | 0.6 |
+| D | Inferred, git patterns | 0.4 |
+
+### Confidence Scoring
+
+```
+confidence = clamp(support * (1 - contradict), 0, 1)
+
+where:
+  support = 1 - product(1 - strength_i) for supporting links
+  contradict = 1 - product(1 - strength_j) for contradicting links
+```
+
+**Threshold**: 0.75 is REQUIRED to proceed from Phase 2 to Phase 3.
+
+### Storage Location
+
+Evidence is stored in `.claude/evidence/sessions/{rq_id}/`:
+- `research-question.json`
+- `sources.json`
+- `claims.json`
+- `evidence.json`
+- `links.json`
+- `validation-report.json`
+
+### Validation Script
+
 ```bash
-/feature-dev Add rate limiting to API endpoints
-```
-
-Let the workflow guide you through all 7 phases.
-
-### Manual agent invocation:
-
-**Explore a feature:**
-```
-"Launch code-explorer to trace how authentication works"
-```
-
-**Design architecture:**
-```
-"Launch code-architect to design the caching layer"
-```
-
-**Review code:**
-```
-"Launch code-reviewer to check my recent changes"
+./skills/evidence-ledger/scripts/validate-ledger.sh .claude/evidence/sessions/rq_20240115_auth
 ```
 
 ## Best Practices
 
 1. **Use the full workflow for complex features**: The 7 phases ensure thorough planning
-2. **Answer clarifying questions thoughtfully**: Phase 3 prevents future confusion
-3. **Choose architecture deliberately**: Phase 4 gives you options for a reason
-4. **Don't skip code review**: Phase 6 catches issues before they reach production
-5. **Read the suggested files**: Phase 2 identifies key files—read them to understand context
+2. **Trust the confidence gate**: If blocked, investigate rather than bypass
+3. **Answer clarifying questions with evidence context**: Phase 3 questions reference specific code
+4. **Choose architecture deliberately**: Phase 4 decisions are backed by evidence
+5. **Don't skip code review**: Phase 6 validates against Evidence Ledger claims
 
 ## When to Use This Plugin
 
@@ -360,53 +326,81 @@ Let the workflow guide you through all 7 phases.
 - Well-defined, simple tasks
 - Urgent hotfixes
 
-## Requirements
+## Directory Structure
 
-- Claude Code installed
-- Git repository (for code review)
-- Project with existing codebase (workflow assumes existing code to learn from)
+```
+plugins/feature-dev/
+├── .claude-plugin/
+│   └── plugin.json
+├── agents/
+│   ├── evidence-explorer.md    # NEW: Evidence collection
+│   ├── evidence-reviewer.md    # NEW: Evidence validation
+│   ├── code-explorer.md        # Codebase exploration
+│   ├── code-architect.md       # Architecture design
+│   └── code-reviewer.md        # Code review
+├── commands/
+│   └── feature-dev.md          # Main command
+├── skills/
+│   └── evidence-ledger/        # NEW: Evidence Ledger skill
+│       ├── SKILL.md
+│       ├── references/
+│       │   ├── data-model.md
+│       │   └── validation-rules.md
+│       ├── examples/
+│       │   └── sample-ledger.json
+│       └── scripts/
+│           └── validate-ledger.sh
+├── hooks/
+│   └── hooks.json              # NEW: Session hooks
+└── README.md
+```
 
 ## Troubleshooting
 
-### Agents take too long
+### Confidence gate keeps blocking
 
-**Issue**: Code exploration or architecture agents are slow
-
-**Solution**:
-- This is normal for large codebases
-- Agents run in parallel when possible
-- The thoroughness pays off in better understanding
-
-### Too many clarifying questions
-
-**Issue**: Phase 3 asks too many questions
+**Issue**: Phase 2 blocks due to low confidence
 
 **Solution**:
-- Be more specific in your initial feature request
-- Provide context about constraints upfront
-- Say "whatever you think is best" if truly no preference
+- Check which claims are below threshold
+- Launch additional explorers for specific areas
+- Consider if claims are too broad (narrow them)
+- Acknowledge assumptions if appropriate
 
-### Architecture options overwhelming
+### Evidence quotes don't match
 
-**Issue**: Too many architecture options in Phase 4
+**Issue**: Reviewer reports quotes don't match files
 
 **Solution**:
-- Trust the recommendation—it's based on codebase analysis
-- If still unsure, ask for more explanation
-- Pick the pragmatic option when in doubt
+- Files may have changed since exploration
+- Re-run explorers to get fresh evidence
+- Check if the right file version is being examined
 
-## Tips
+### Too many claims
 
-- **Be specific in your feature request**: More detail = fewer clarifying questions
-- **Trust the process**: Each phase builds on the previous one
-- **Review agent outputs**: Agents provide valuable insights about your codebase
-- **Don't skip phases**: Each phase serves a purpose
-- **Use for learning**: The exploration phase teaches you about your own codebase
+**Issue**: Explorer generates too many claims
 
-## Author
+**Solution**:
+- Narrow the research question scope
+- Reduce budgets in research question
+- Focus explorers on specific aspects
 
-Sid Bidasaria (sbidasaria@anthropic.com)
+## Authors
+
+- Sid Bidasaria (sbidasaria@anthropic.com) - Original author
+- Jiusi - Evidence Ledger system implementation
 
 ## Version
 
-1.0.0
+2.0.0
+
+## Changelog
+
+### v2.0.0
+- Added Evidence Ledger system for structured evidence collection
+- New `evidence-explorer` agent for focused discovery
+- New `evidence-reviewer` agent for validation
+- Confidence-based gate (0.75 threshold) in Phase 2
+- JSON-based evidence storage in `.claude/evidence/sessions/`
+- Validation script for ledger verification
+- Session hooks for directory management
